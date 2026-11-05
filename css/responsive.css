@@ -1,0 +1,5 @@
+@media (max-width:820px){
+  body{grid-template:48px 1fr 140px/46px 1fr;grid-template-areas:"top top" "tools stage" "side side"}
+  #side{border-left:0;border-top:1px solid var(--line)}
+  #top{gap:10px;overflow-x:auto}.brand b{display:none}
+}

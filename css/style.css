@@ -1,0 +1,23 @@
+:root{--bg:#16171a;--panel:#0e0f11;--line:#2b2d32;--tx:#ececee;--mut:#8b8e96;--acc:#e8e8ea;--hi:#4aa3ff}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--tx);font:13px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
+body{display:grid;grid-template:48px 1fr/52px 1fr 232px;grid-template-areas:"top top top" "tools stage side"}
+#top{grid-area:top;display:flex;align-items:center;gap:22px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;margin-right:12px}
+.grp{display:flex;align-items:center;gap:4px}
+button,select,input[type=number]{background:#1c1e22;color:var(--tx);border:1px solid var(--line);border-radius:5px;padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:#555a63}
+button:disabled{opacity:.35;cursor:default}
+button.toggle.on,#tools button.on{background:var(--acc);color:#111;border-color:var(--acc)}
+:focus-visible{outline:2px solid var(--hi);outline-offset:1px}
+#zlabel{min-width:46px;text-align:center;color:var(--mut)}
+#side{grid-area:side;background:var(--panel);border-left:1px solid var(--line);overflow:auto}
+#side section{padding:14px;border-bottom:1px solid var(--line)}
+#side h3{margin:0 0 10px;font-size:13px;font-weight:600}
+#side label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;color:var(--mut)}
+#side label.row{justify-content:flex-start}
+#side input[type=range]{width:100%}
+#side label:has(input[type=range]){flex-wrap:wrap}
+#side output{color:var(--tx)}
+#side input[type=color]{width:34px;height:24px;padding:0;border:1px solid var(--line);background:none}
+.hint{color:var(--mut)}

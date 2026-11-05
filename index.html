@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neotribal Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/editor.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 21C8 19 9 9 21 3 17 10 15 18 3 21Z" fill="currentColor"/></svg><b>Neotribal Studio</b></div>
+  <div class="grp">
+    <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+    <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+  </div>
+  <div class="grp">
+    <button id="zout" title="Zoom out">−</button>
+    <span id="zlabel">100%</span>
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zfit" title="Fit document">Fit</button>
+    <button id="z100" title="Actual size">100%</button>
+  </div>
+  <div class="grp">
+    <button id="grid" class="toggle" title="Show grid">Grid</button>
+  </div>
+</header>
+<nav id="tools" aria-label="Tools"></nav>
+<main id="stage"><svg id="svg" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="gridp" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#8884" stroke-width="1" vector-effect="non-scaling-stroke"/></pattern></defs>
+<g id="world"><rect id="paper" x="0" y="0" width="1200" height="800"/><rect id="gridr" x="0" y="0" width="1200" height="800" fill="url(#gridp)" pointer-events="none" display="none"/><g id="art"></g><g id="overlay" pointer-events="none"></g></g></svg>
+<div id="status"></div></main>
+<aside id="side">
+  <section><h3>Stroke &amp; fill</h3>
+    <label>Stroke colour <input type="color" id="stroke" value="#000000"></label>
+    <label>Stroke width <output id="swo">4</output><input type="range" id="sw" min="1" max="60" value="4"></label>
+    <label class="row">Fill <input type="checkbox" id="fillon"><input type="color" id="fill" value="#000000"></label>
+  </section>
+  <section><h3>Document</h3>
+    <label>Canvas
+      <select id="bg"><option value="#ffffff">White</option><option value="#000000">Black</option><option value="transparent">Transparent</option></select></label>
+    <label>Width <input type="number" id="dw" value="1200" min="100" max="8000"></label>
+    <label>Height <input type="number" id="dh" value="800" min="100" max="8000"></label>
+  </section>
+  <section class="hint"><p>Symmetry, the Neo-Tribal generator, layers and export arrive in later phases.</p></section>
+</aside>
+<script src="js/geometry.js"></script>
+<script src="js/history.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/selection.js"></script>
+<script src="js/drawing.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
