@@ -36,6 +36,15 @@
     <div class="seg"><button id="symc">Centre axes</button><button id="symr" title="Turn mirrored copies into real, independent objects">Release mirrors</button></div>
     <p class="note">Drag an axis with the Select tool, or hold Alt with any tool.</p>
   </section>
+  <section><h3>Neo-Tribal generator</h3>
+    <label>Fill strength <output id="fso">50</output><input type="range" id="fs" min="0" max="100" value="50" disabled></label>
+    <label>Tip extension <output id="teo">45</output><input type="range" id="te" min="0" max="100" value="45" disabled></label>
+    <label>Taper <output id="tpo">40</output><input type="range" id="tp" min="0" max="100" value="40" disabled></label>
+    <label>Smoothness <output id="smo">50</output><input type="range" id="sm" min="0" max="100" value="50" disabled></label>
+    <div class="seg"><button id="tgen" disabled>Generate</button><button id="trev" disabled>Revert to stroke</button></div>
+    <button id="trst" disabled style="width:100%">Reset sliders</button>
+    <p class="note">Select a freehand stroke or line, then Generate. The original stroke is kept.</p>
+  </section>
   <section><h3>Stroke &amp; fill</h3>
     <label>Stroke colour <input type="color" id="stroke" value="#000000"></label>
     <label>Stroke width <output id="swo">4</output><input type="range" id="sw" min="1" max="60" value="4"></label>
@@ -47,9 +56,10 @@
     <label>Width <input type="number" id="dw" value="1200" min="100" max="8000"></label>
     <label>Height <input type="number" id="dh" value="800" min="100" max="8000"></label>
   </section>
-  <section class="hint"><p>The Neo-Tribal generator, layers and export arrive in later phases.</p></section>
+  <section class="hint"><p>Ornamental details, layers, node editing and export arrive in later phases.</p></section>
 </aside>
 <script src="js/geometry.js"></script>
+<script src="js/tribal-engine.js"></script>
 <script src="js/history.js"></script>
 <script src="js/canvas.js"></script>
 <script src="js/selection.js"></script>

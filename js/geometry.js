@@ -6,7 +6,7 @@ NT.geo = {
   mirror(o, kind, ax, ay, id){
     const fx = kind.includes('v') ? x => 2 * ax - x : x => x, fy = kind.includes('h') ? y => 2 * ay - y : y => y;
     const tx = o.tx || 0, ty = o.ty || 0, c = { ...o, id, m: '', tx: 0, ty: 0 };
-    if (o.type === 'path'){ c.pts = o.pts.map(p => ({ x: fx(p.x + tx), y: fy(p.y + ty) })); c.d = NT.geo.smoothPath(c.pts); }
+    if (o.type === 'path'){ c.pts = o.pts.map(p => ({ x: fx(p.x + tx), y: fy(p.y + ty) })); c.d = NT.geo.smoothPath(c.pts); if (o.gen && NT.tribal) NT.tribal.apply(c); }
     else if (o.type === 'line'){ c.x1 = fx(o.x1 + tx); c.y1 = fy(o.y1 + ty); c.x2 = fx(o.x2 + tx); c.y2 = fy(o.y2 + ty); }
     else if (o.type === 'rect'){ const xa = fx(o.x + tx), xb = fx(o.x + o.w + tx), ya = fy(o.y + ty), yb = fy(o.y + o.h + ty);
       c.x = Math.min(xa, xb); c.y = Math.min(ya, yb); c.w = Math.abs(xb - xa); c.h = Math.abs(yb - ya); }

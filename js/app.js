@@ -48,12 +48,12 @@
     syncPanel(){
       const s = this.selection.objects()[0];
       const st = s ? { stroke: s.stroke, sw: s.sw, fill: s.fill === 'none' ? this.style.fill : s.fill, fillOn: s.fill !== 'none' } : this.style;
-      $('stroke').value = st.stroke; $('sw').value = st.sw; $('swo').textContent = st.sw; $('fill').value = st.fill; $('fillon').checked = st.fillOn;
+      $('stroke').value = st.stroke; $('sw').value = st.sw; $('swo').textContent = st.sw; $('fill').value = st.fill; $('fillon').checked = st.fillOn; if (this.syncGen) this.syncGen();
     },
     applyStyle(style, objFn){
       Object.assign(this.style, style);
       const sel = this.selection.objects(); if (!sel.length) return;
-      for (const o of sel) Object.assign(o, objFn(o)); this.redraw();
+      for (const o of sel){ Object.assign(o, objFn(o)); if (o.gen) NT.tribal.apply(o); } this.redraw();
     }
   };
 
@@ -90,6 +90,37 @@
     document.querySelectorAll('#symseg button').forEach(b => b.onclick = () => { app.canvas.setDoc({ sym: b.dataset.m }); app.syncDoc(); app.commit(); });
     $('symc').onclick = () => { const d = app.canvas.doc; app.canvas.setDoc({ ax: d.w / 2, ay: d.h / 2 }); app.commit(); };
     $('symr').onclick = () => app.releaseMirrors();
+
+    /* Neo-Tribal generator panel */
+    const KEYS = ['fs', 'te', 'tp', 'sm'], D = NT.tribal.DEFAULTS; app.tp = { ...D };
+    const genable = () => app.selection.objects().filter(o => o.type === 'path' || o.type === 'line');
+    const makeGen = o => {
+      if (o.type === 'line'){ o.pts = [{ x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }]; o.d = NT.geo.smoothPath(o.pts); o.type = 'path'; for (const k of ['x1', 'y1', 'x2', 'y2']) delete o[k]; o.fill = 'none'; }
+      o.gen = { ...app.tp }; NT.tribal.apply(o);
+    };
+    app.syncGen = () => {
+      const sel = genable(), g = sel.find(o => o.gen);
+      for (const id of KEYS) $(id).disabled = !sel.length;
+      $('tgen').disabled = !sel.length; $('trst').disabled = !sel.length; $('trev').disabled = !g;
+      if (g) app.tp = { ...g.gen };
+      for (const id of KEYS){ $(id).value = app.tp[id]; $(id + 'o').textContent = app.tp[id]; }
+    };
+    let raf = 0, dirty = {};
+    for (const id of KEYS){
+      $(id).oninput = () => {
+        app.tp[id] = +$(id).value; $(id + 'o').textContent = $(id).value; dirty[id] = app.tp[id];
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0; const ch = dirty; dirty = {};
+          for (const o of genable()){ if (!o.gen) makeGen(o); else { Object.assign(o.gen, ch); NT.tribal.apply(o); } }
+          app.redraw(); $('trev').disabled = false;
+        });
+      };
+      $(id).onchange = () => { if (genable().length) app.commit(); };
+    }
+    $('tgen').onclick = () => { for (const o of genable()) if (!o.gen) makeGen(o); app.commit(); app.syncGen(); };
+    $('trev').onclick = () => { for (const o of genable()){ delete o.gen; delete o.gd; delete o.gb; } app.commit(); app.syncGen(); };
+    $('trst').onclick = () => { app.tp = { ...D }; for (const o of genable()){ if (!o.gen) makeGen(o); else { o.gen = { ...D }; NT.tribal.apply(o); } } app.commit(); app.syncGen(); };
 
     window.addEventListener('keydown', e => {
       if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox') return;

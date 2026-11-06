@@ -56,7 +56,7 @@ NT.Canvas = class {
     g.setAttribute('transform', `translate(${o.tx || 0} ${o.ty || 0})`);
     let el;
     switch (o.type){
-      case 'path': el = document.createElementNS(ns, 'path'); el.setAttribute('d', o.d); break;
+      case 'path': el = document.createElementNS(ns, 'path'); el.setAttribute('d', o.gen ? o.gd : o.d); break;
       case 'line': el = document.createElementNS(ns, 'line'); for (const k of ['x1','y1','x2','y2']) el.setAttribute(k, o[k]); break;
       case 'rect': el = document.createElementNS(ns, 'rect'); el.setAttribute('x', o.x); el.setAttribute('y', o.y); el.setAttribute('width', o.w); el.setAttribute('height', o.h); break;
       case 'ellipse': el = document.createElementNS(ns, 'ellipse'); for (const k of ['cx','cy','rx','ry']) el.setAttribute(k, o[k]); break;
@@ -64,11 +64,12 @@ NT.Canvas = class {
     const filled = o.fill && o.fill !== 'none' && o.type !== 'line';
     el.setAttribute('fill', filled ? o.fill : 'none'); el.setAttribute('stroke', o.stroke); el.setAttribute('stroke-width', o.sw);
     el.setAttribute('stroke-linecap', 'round'); el.setAttribute('stroke-linejoin', 'round');
+    if (o.gen){ el.setAttribute('fill', o.stroke); el.setAttribute('stroke-width', 0); }
     g.appendChild(el); return g;
   }
   /* Invisible fat copy so thin strokes are easy to click. */
   static hit(o, k){
-    const g = NT.Canvas.build(o), el = g.firstChild, filled = o.fill && o.fill !== 'none' && o.type !== 'line';
+    const g = NT.Canvas.build(o), el = g.firstChild, filled = o.gen || (o.fill && o.fill !== 'none' && o.type !== 'line');
     el.setAttribute('stroke', 'transparent'); el.setAttribute('stroke-width', Math.max(o.sw, 12 / k));
     el.setAttribute('fill', filled ? 'transparent' : 'none'); el.setAttribute('pointer-events', 'all'); return g;
   }

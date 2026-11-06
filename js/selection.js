@@ -7,6 +7,7 @@ NT.Selection = class {
   has(id){ return this.ids.has(id); }
   objects(){ return this.app.objects.filter(o => this.ids.has(o.id)); }
   bbox(o){
+    if (o.gen && o.gb) return o.gb;
     const w = o.sw / 2;
     switch (o.type){
       case 'line': return { x: Math.min(o.x1, o.x2) - w, y: Math.min(o.y1, o.y2) - w, w: Math.abs(o.x2 - o.x1) + o.sw, h: Math.abs(o.y2 - o.y1) + o.sw };
