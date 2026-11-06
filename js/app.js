@@ -21,17 +21,29 @@
     redraw(){ this.canvas.render(this.objects); this.refreshOverlay(); },
     refreshOverlay(){
       const k = this.canvas.view.k, ov = this.canvas.overlay, ns = 'http://www.w3.org/2000/svg'; ov.replaceChildren();
+      const dc = this.canvas.doc, line = (x1, y1, x2, y2) => { const l = document.createElementNS(ns, 'line');
+        for (const [n, v] of Object.entries({ x1, y1, x2, y2, stroke: '#ff4d8d', 'stroke-width': 1.5 / k, 'stroke-dasharray': `${8 / k} ${5 / k}` })) l.setAttribute(n, v); ov.appendChild(l); };
+      if (dc.sym === 'v' || dc.sym === 'vh') line(dc.ax, 0, dc.ax, dc.h);
+      if (dc.sym === 'h' || dc.sym === 'vh') line(0, dc.ay, dc.w, dc.ay);
       for (const o of this.selection.objects()){
         const b = this.selection.bbox(o), r = document.createElementNS(ns, 'rect');
         r.setAttribute('x', b.x + (o.tx || 0)); r.setAttribute('y', b.y + (o.ty || 0)); r.setAttribute('width', b.w); r.setAttribute('height', b.h);
         r.setAttribute('fill', 'none'); r.setAttribute('stroke', '#4aa3ff'); r.setAttribute('stroke-width', 1.5 / k); r.setAttribute('stroke-dasharray', `${5 / k} ${4 / k}`);
-        ov.appendChild(r);
+        for (const t of [null, ...this.canvas.mats(o.m)]){ const c = r.cloneNode(); if (t){ c.setAttribute('transform', t); c.setAttribute('opacity', 0.5); } ov.appendChild(c); }
       }
     },
     setStatus(t){ $('status').textContent = t; },
+    /* Turn mirrored copies (of the selection, or of everything) into real objects. */
+    releaseMirrors(){
+      const d = this.canvas.doc, src = (this.selection.ids.size ? this.selection.objects() : this.objects).filter(o => o.m), out = [];
+      for (const o of src){ for (const t of NT.geo.mirrorKinds(o.m)) out.push(NT.geo.mirror(o, t, d.ax, d.ay, this.newId())); o.m = ''; }
+      if (!out.length){ this.setStatus('No mirrored objects to release'); return; }
+      this.objects.push(...out); this.commit();
+    },
     updateButtons(){ $('undo').disabled = !this.history.canUndo; $('redo').disabled = !this.history.canRedo; },
     refreshTools(){ document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === this.drawing.tool)); },
-    syncDoc(){ const d = this.canvas.doc; $('bg').value = d.bg; $('dw').value = d.w; $('dh').value = d.h; },
+    syncDoc(){ const d = this.canvas.doc; $('bg').value = d.bg; $('dw').value = d.w; $('dh').value = d.h;
+      document.querySelectorAll('#symseg button').forEach(b => b.classList.toggle('on', b.dataset.m === d.sym)); },
     /* Show the first selected object's style in the panel (or the defaults if nothing is selected). */
     syncPanel(){
       const s = this.selection.objects()[0];
@@ -57,7 +69,7 @@
       b.innerHTML = `<svg viewBox="0 0 24 24">${ICONS[id]}</svg>`; b.onclick = () => app.drawing.setTool(id); nav.appendChild(b);
     }
     app.canvas.onView = v => { $('zlabel').textContent = Math.round(v.k * 100) + '%'; app.refreshOverlay(); };
-    app.canvas.setDoc({}); app.canvas.fit(); app.history.reset(app.snapshot()); app.drawing.setTool('pen'); app.redraw(); app.updateButtons();
+    app.canvas.setDoc({}); app.syncDoc(); app.canvas.fit(); app.history.reset(app.snapshot()); app.drawing.setTool('pen'); app.redraw(); app.updateButtons();
 
     $('undo').onclick = () => app.restore(app.history.undo());
     $('redo').onclick = () => app.restore(app.history.redo());
@@ -73,8 +85,11 @@
     for (const id of ['stroke', 'sw', 'fill', 'fillon']) $(id).addEventListener('change', () => { if (app.selection.ids.size) app.commit(); });
 
     $('bg').onchange = e => { app.canvas.setDoc({ bg: e.target.value }); app.commit(); };
-    const size = () => { const w = Math.min(8000, Math.max(100, +$('dw').value || 1200)), h = Math.min(8000, Math.max(100, +$('dh').value || 800)); app.canvas.setDoc({ w, h }); app.syncDoc(); app.canvas.fit(); app.commit(); };
+    const size = () => { const w = Math.min(8000, Math.max(100, +$('dw').value || 1200)), h = Math.min(8000, Math.max(100, +$('dh').value || 800)); app.canvas.setDoc({ w, h, ax: w / 2, ay: h / 2 }); app.syncDoc(); app.canvas.fit(); app.commit(); };
     $('dw').onchange = size; $('dh').onchange = size;
+    document.querySelectorAll('#symseg button').forEach(b => b.onclick = () => { app.canvas.setDoc({ sym: b.dataset.m }); app.syncDoc(); app.commit(); });
+    $('symc').onclick = () => { const d = app.canvas.doc; app.canvas.setDoc({ ax: d.w / 2, ay: d.h / 2 }); app.commit(); };
+    $('symr').onclick = () => app.releaseMirrors();
 
     window.addEventListener('keydown', e => {
       if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox') return;

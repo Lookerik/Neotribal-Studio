@@ -16,6 +16,8 @@ NT.Drawing = class {
     if (e.button === 1 || this.space || this.tool === 'hand'){
       this.drag = { kind: 'pan', cx: e.clientX, cy: e.clientY }; this.app.stage.classList.add('pan'); return;
     }
+    const axis = this.axisAt(p, e.altKey);
+    if (axis){ this.drag = { kind: 'axis', which: axis }; return; }
     if (this.tool === 'select'){
       const g = e.target.closest('#art > [data-id]'), id = g && g.dataset.id;
       if (id){
@@ -25,7 +27,7 @@ NT.Drawing = class {
       } else if (!e.shiftKey) this.app.selection.clear();
       return;
     }
-    const a = this.app, base = { id: a.newId(), stroke: a.style.stroke, sw: a.style.sw, fill: a.style.fillOn ? a.style.fill : 'none', tx: 0, ty: 0 };
+    const a = this.app, base = { id: a.newId(), stroke: a.style.stroke, sw: a.style.sw, fill: a.style.fillOn ? a.style.fill : 'none', tx: 0, ty: 0, m: a.canvas.doc.sym === 'off' ? '' : a.canvas.doc.sym };
     let o;
     switch (this.tool){
       case 'pen': o = { ...base, type: 'path', pts: [p], d: '', fill: 'none' }; break;
@@ -38,8 +40,9 @@ NT.Drawing = class {
   move(e){
     const d = this.drag, p = this.cv.toWorld(e.clientX, e.clientY);
     this.app.setStatus(`${Math.round(p.x)}, ${Math.round(p.y)}`);
-    if (!d) return;
+    if (!d){ this.hover(p, e.altKey); return; }
     if (d.kind === 'pan'){ this.cv.panBy(e.clientX - d.cx, e.clientY - d.cy); d.cx = e.clientX; d.cy = e.clientY; return; }
+    if (d.kind === 'axis'){ const dc = this.cv.doc; if (d.which === 'x') dc.ax = p.x; else dc.ay = p.y; d.moved = true; this.app.redraw(); return; }
     if (d.kind === 'move'){
       const dx = p.x - d.last.x, dy = p.y - d.last.y; d.last = p; d.moved = true;
       this.app.selection.nudge(dx, dy); return;
@@ -62,7 +65,7 @@ NT.Drawing = class {
   }
   up(){
     const d = this.drag; if (!d) return; this.drag = null; this.app.stage.classList.remove('pan');
-    if (d.kind === 'move'){ if (d.moved) this.app.commit(); return; }
+    if (d.kind === 'move' || d.kind === 'axis'){ if (d.moved) this.app.commit(); return; }
     if (d.kind !== 'draw') return;
     const o = d.o; this.app.overlay2.replaceChildren();
     if (o.type === 'path'){ o.pts = NT.geo.thin(o.pts, 1 / this.cv.view.k); o.d = NT.geo.smoothPath(o.pts); }
@@ -70,5 +73,18 @@ NT.Drawing = class {
     if (empty) return;
     this.app.objects.push(o); this.app.commit(); this.app.selection.set([o.id]);
   }
-  preview(){ this.app.overlay2.replaceChildren(NT.Canvas.build(this.drag.o)); }
+  /* Axes are grabbable with the Select tool, or with Alt held for any other tool. */
+  axisAt(p, alt){
+    const d = this.cv.doc, t = 8 / this.cv.view.k;
+    if (d.sym === 'off' || this.space || this.tool === 'hand' || !(this.tool === 'select' || alt)) return null;
+    if ((d.sym === 'v' || d.sym === 'vh') && Math.abs(p.x - d.ax) < t) return 'x';
+    if ((d.sym === 'h' || d.sym === 'vh') && Math.abs(p.y - d.ay) < t) return 'y';
+    return null;
+  }
+  hover(p, alt){ const a = this.axisAt(p, alt); this.app.stage.style.cursor = a === 'x' ? 'ew-resize' : a === 'y' ? 'ns-resize' : ''; }
+  preview(){
+    const o = this.drag.o, f = document.createDocumentFragment();
+    for (const t of [null, ...this.cv.mats(o.m)]){ const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); if (t) g.setAttribute('transform', t); g.appendChild(NT.Canvas.build(o)); f.appendChild(g); }
+    this.app.overlay2.replaceChildren(f);
+  }
 };

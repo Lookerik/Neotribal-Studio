@@ -4,7 +4,7 @@ NT.Canvas = class {
     this.svg = document.getElementById('svg'); this.world = document.getElementById('world');
     this.art = document.getElementById('art'); this.overlay = document.getElementById('overlay');
     this.paper = document.getElementById('paper'); this.gridr = document.getElementById('gridr');
-    this.view = { x: 0, y: 0, k: 1 }; this.doc = { w: 1200, h: 800, bg: '#ffffff' };
+    this.view = { x: 0, y: 0, k: 1 }; this.doc = { w: 1200, h: 800, bg: '#ffffff', sym: 'off', ax: 600, ay: 400 };
     this.onView = () => {};
     this.svg.addEventListener('wheel', e => {
       e.preventDefault();
@@ -13,6 +13,11 @@ NT.Canvas = class {
       else this.zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
     }, { passive: false });
     new ResizeObserver(() => this.apply()).observe(this.svg);
+  }
+  /* Mirror transforms for an object drawn with symmetry mode m ('v', 'h' or 'vh'). */
+  mats(m){
+    const { ax, ay } = this.doc, V = `matrix(-1 0 0 1 ${2 * ax} 0)`, H = `matrix(1 0 0 -1 0 ${2 * ay})`, B = `matrix(-1 0 0 -1 ${2 * ax} ${2 * ay})`;
+    return m === 'v' ? [V] : m === 'h' ? [H] : m === 'vh' ? [V, H, B] : [];
   }
   toWorld(cx, cy){ const r = this.svg.getBoundingClientRect(); return { x: (cx - r.left - this.view.x) / this.view.k, y: (cy - r.top - this.view.y) / this.view.k }; }
   apply(){
@@ -71,8 +76,11 @@ NT.Canvas = class {
     const frag = document.createDocumentFragment();
     for (const o of objects){
       const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g'); wrap.dataset.id = o.id;
-      const vis = NT.Canvas.build(o); vis.setAttribute('pointer-events', 'none');
-      wrap.appendChild(vis); wrap.appendChild(NT.Canvas.hit(o, this.view.k));
+      for (const t of [null, ...this.mats(o.m)]){
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'g'); if (t) c.setAttribute('transform', t);
+        const vis = NT.Canvas.build(o); vis.setAttribute('pointer-events', 'none');
+        c.appendChild(vis); c.appendChild(NT.Canvas.hit(o, this.view.k)); wrap.appendChild(c);
+      }
       frag.appendChild(wrap);
     }
     this.art.replaceChildren(frag);

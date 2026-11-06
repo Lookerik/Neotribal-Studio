@@ -31,6 +31,11 @@
 <g id="world"><rect id="paper" x="0" y="0" width="1200" height="800"/><rect id="gridr" x="0" y="0" width="1200" height="800" fill="url(#gridp)" pointer-events="none" display="none"/><g id="art"></g><g id="overlay" pointer-events="none"></g></g></svg>
 <div id="status"></div></main>
 <aside id="side">
+  <section><h3>Symmetry</h3>
+    <div class="seg" id="symseg"><button data-m="off" class="on">Off</button><button data-m="v">Vertical</button><button data-m="h">Horizontal</button><button data-m="vh">Both</button></div>
+    <div class="seg"><button id="symc">Centre axes</button><button id="symr" title="Turn mirrored copies into real, independent objects">Release mirrors</button></div>
+    <p class="note">Drag an axis with the Select tool, or hold Alt with any tool.</p>
+  </section>
   <section><h3>Stroke &amp; fill</h3>
     <label>Stroke colour <input type="color" id="stroke" value="#000000"></label>
     <label>Stroke width <output id="swo">4</output><input type="range" id="sw" min="1" max="60" value="4"></label>
@@ -42,7 +47,7 @@
     <label>Width <input type="number" id="dw" value="1200" min="100" max="8000"></label>
     <label>Height <input type="number" id="dh" value="800" min="100" max="8000"></label>
   </section>
-  <section class="hint"><p>Symmetry, the Neo-Tribal generator, layers and export arrive in later phases.</p></section>
+  <section class="hint"><p>The Neo-Tribal generator, layers and export arrive in later phases.</p></section>
 </aside>
 <script src="js/geometry.js"></script>
 <script src="js/history.js"></script>
