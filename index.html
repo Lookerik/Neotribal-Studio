@@ -42,8 +42,17 @@
     <label>Taper <output id="tpo">40</output><input type="range" id="tp" min="0" max="100" value="40" disabled></label>
     <label>Smoothness <output id="smo">50</output><input type="range" id="sm" min="0" max="100" value="50" disabled></label>
     <div class="seg"><button id="tgen" disabled>Generate</button><button id="trev" disabled>Revert to stroke</button></div>
-    <button id="trst" disabled style="width:100%">Reset sliders</button>
+    <div class="seg"><button id="tre" disabled title="New random layout of the details">Regenerate</button><button id="trst" disabled>Reset sliders</button></div>
     <p class="note">Select a freehand stroke or line, then Generate. The original stroke is kept.</p>
+  </section>
+  <section><h3>Details</h3>
+    <label>Detail density <output id="ddo">30</output><input type="range" id="dd" min="0" max="100" value="30" disabled></label>
+    <label>Inner details <output id="oio">50</output><input type="range" id="oi" min="0" max="100" value="50" disabled></label>
+    <label>Outer details <output id="ooo">50</output><input type="range" id="oo" min="0" max="100" value="50" disabled></label>
+    <label>Spacing <output id="spo">40</output><input type="range" id="sp" min="0" max="100" value="40" disabled></label>
+    <label>Curvature <output id="cvo">35</output><input type="range" id="cv" min="0" max="100" value="35" disabled></label>
+    <label>Randomness <output id="rno">25</output><input type="range" id="rn" min="0" max="100" value="25" disabled></label>
+    <p class="note">Density sets how many details appear; Inner = negative-space cuts, Outer = thorns.</p>
   </section>
   <section><h3>Stroke &amp; fill</h3>
     <label>Stroke colour <input type="color" id="stroke" value="#000000"></label>
@@ -56,7 +65,7 @@
     <label>Width <input type="number" id="dw" value="1200" min="100" max="8000"></label>
     <label>Height <input type="number" id="dh" value="800" min="100" max="8000"></label>
   </section>
-  <section class="hint"><p>Ornamental details, layers, node editing and export arrive in later phases.</p></section>
+  <section class="hint"><p>Layers, node editing, save and export arrive in later phases.</p></section>
 </aside>
 <script src="js/geometry.js"></script>
 <script src="js/tribal-engine.js"></script>

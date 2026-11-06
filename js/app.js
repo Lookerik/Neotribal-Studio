@@ -92,7 +92,7 @@
     $('symr').onclick = () => app.releaseMirrors();
 
     /* Neo-Tribal generator panel */
-    const KEYS = ['fs', 'te', 'tp', 'sm'], D = NT.tribal.DEFAULTS; app.tp = { ...D };
+    const KEYS = ['fs', 'te', 'tp', 'sm', 'dd', 'oi', 'oo', 'sp', 'cv', 'rn'], D = NT.tribal.DEFAULTS; app.tp = { ...D };
     const genable = () => app.selection.objects().filter(o => o.type === 'path' || o.type === 'line');
     const makeGen = o => {
       if (o.type === 'line'){ o.pts = [{ x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }]; o.d = NT.geo.smoothPath(o.pts); o.type = 'path'; for (const k of ['x1', 'y1', 'x2', 'y2']) delete o[k]; o.fill = 'none'; }
@@ -101,7 +101,7 @@
     app.syncGen = () => {
       const sel = genable(), g = sel.find(o => o.gen);
       for (const id of KEYS) $(id).disabled = !sel.length;
-      $('tgen').disabled = !sel.length; $('trst').disabled = !sel.length; $('trev').disabled = !g;
+      $('tgen').disabled = !sel.length; $('trst').disabled = !sel.length; $('tre').disabled = !sel.length; $('trev').disabled = !g;
       if (g) app.tp = { ...g.gen };
       for (const id of KEYS){ $(id).value = app.tp[id]; $(id + 'o').textContent = app.tp[id]; }
     };
@@ -119,6 +119,7 @@
       $(id).onchange = () => { if (genable().length) app.commit(); };
     }
     $('tgen').onclick = () => { for (const o of genable()) if (!o.gen) makeGen(o); app.commit(); app.syncGen(); };
+    $('tre').onclick = () => { const sd = 1 + Math.floor(Math.random() * 1e6); app.tp.seed = sd; for (const o of genable()){ if (!o.gen) makeGen(o); o.gen.seed = sd; NT.tribal.apply(o); } app.commit(); app.syncGen(); };
     $('trev').onclick = () => { for (const o of genable()){ delete o.gen; delete o.gd; delete o.gb; } app.commit(); app.syncGen(); };
     $('trst').onclick = () => { app.tp = { ...D }; for (const o of genable()){ if (!o.gen) makeGen(o); else { o.gen = { ...D }; NT.tribal.apply(o); } } app.commit(); app.syncGen(); };
 
