@@ -53,7 +53,7 @@ NT.Canvas = class {
   static build(o){
     const ns = 'http://www.w3.org/2000/svg';
     const g = document.createElementNS(ns, 'g');
-    g.setAttribute('transform', `translate(${o.tx || 0} ${o.ty || 0})`);
+    const M = o.M || [1, 0, 0, 1]; g.setAttribute('transform', `matrix(${M[0]} ${M[1]} ${M[2]} ${M[3]} ${o.tx || 0} ${o.ty || 0})`);
     let el;
     switch (o.type){
       case 'path': el = document.createElementNS(ns, 'path'); el.setAttribute('d', o.gen ? o.gd : o.d); break;
@@ -75,12 +75,14 @@ NT.Canvas = class {
   }
   render(objects){
     const frag = document.createDocumentFragment();
-    for (const o of objects){
+    const ls = this.layers || [], lay = new Map(ls.map(l => [l.id, l]));
+    const order = ls.length ? ls.flatMap(l => l.visible ? objects.filter(o => (lay.has(o.layer) ? o.layer : ls[0].id) === l.id) : []) : objects;
+    for (const o of order){
       const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g'); wrap.dataset.id = o.id;
       for (const t of [null, ...this.mats(o.m)]){
         const c = document.createElementNS('http://www.w3.org/2000/svg', 'g'); if (t) c.setAttribute('transform', t);
         const vis = NT.Canvas.build(o); vis.setAttribute('pointer-events', 'none');
-        c.appendChild(vis); c.appendChild(NT.Canvas.hit(o, this.view.k)); wrap.appendChild(c);
+        c.appendChild(vis); if (!(lay.get(o.layer) || ls[0] || {}).locked) c.appendChild(NT.Canvas.hit(o, this.view.k)); wrap.appendChild(c);
       }
       frag.appendChild(wrap);
     }

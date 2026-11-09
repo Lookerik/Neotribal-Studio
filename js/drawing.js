@@ -8,7 +8,7 @@ NT.Drawing = class {
     s.addEventListener('pointerup', e => this.up(e));
     s.addEventListener('pointercancel', e => this.up(e));
   }
-  setTool(t){ this.tool = t; this.app.stage.dataset.tool = t; this.app.selection.clear(); this.app.refreshTools(); }
+  setTool(t){ if (this.app.nodes) this.app.nodes.set(null, null); this.tool = t; this.app.stage.dataset.tool = t; this.app.selection.clear(); this.app.refreshTools(); }
   down(e){
     if (e.button === 2) return;
     this.cv.svg.setPointerCapture(e.pointerId);
@@ -19,15 +19,31 @@ NT.Drawing = class {
     const axis = this.axisAt(p, e.altKey);
     if (axis){ this.drag = { kind: 'axis', which: axis }; return; }
     if (this.tool === 'select'){
-      const g = e.target.closest('#art > [data-id]'), id = g && g.dataset.id;
+      const hh = this.handleAt(p);
+      if (hh){ this.drag = { kind: 'xform', hh, box: this.app.selection.unionBox(), start: p, moved: false, init: this.app.selection.objects().map(o => ({ o, M: o.M && [...o.M], tx: o.tx || 0, ty: o.ty || 0 })) }; return; }
+      const g = e.target.closest('#art > [data-id]'), id = g && g.dataset.id, S = this.app.selection;
       if (id){
-        if (e.shiftKey) this.app.selection.toggle(id);
-        else if (!this.app.selection.has(id)) this.app.selection.set([id]);
-        if (this.app.selection.has(id)) this.drag = { kind: 'move', last: p, moved: false };
-      } else if (!e.shiftKey) this.app.selection.clear();
+        const ids = S.groupOf(id);
+        if (e.shiftKey){ const all = ids.every(i => S.has(i)); S.set([...S.ids].filter(i => !(all && ids.includes(i))).concat(all ? [] : ids)); }
+        else if (!S.has(id)) S.set(ids);
+        if (S.has(id)) this.drag = { kind: 'move', last: p, moved: false };
+      } else if (!e.shiftKey) S.clear();
       return;
     }
-    const a = this.app, base = { id: a.newId(), stroke: a.style.stroke, sw: a.style.sw, fill: a.style.fillOn ? a.style.fill : 'none', tx: 0, ty: 0, m: a.canvas.doc.sym === 'off' ? '' : a.canvas.doc.sym };
+    if (this.tool === 'node'){
+      const nd = this.app.nodes, now = performance.now(), dbl = this._lt && now - this._lt < 350; this._lt = now;
+      const h = nd.hit(p); if (h){ this.drag = nd.begin(h, p); return; }
+      const g = e.target.closest('#art > [data-id]'), id = g && g.dataset.id;
+      if (id){
+        if (nd.oid === id){ if (dbl && nd.addAt(p)) return; nd.set(id, null); return; }
+        const o = this.app.objects.find(x => x.id === id); this.app.selection.set([id]);
+        if (!nd.enter(o)) this.app.setStatus("This object can't be edited as nodes");
+      } else { nd.set(null, null); this.app.selection.clear(); }
+      return;
+    }
+    const a = this.app, ly = a.layers.find(l => l.id === a.activeLayer);
+    if (!ly || ly.locked || !ly.visible){ a.setStatus('The active layer is hidden or locked'); return; }
+    const base = { layer: a.activeLayer, id: a.newId(), stroke: a.style.stroke, sw: a.style.sw, fill: a.style.fillOn ? a.style.fill : 'none', tx: 0, ty: 0, m: a.canvas.doc.sym === 'off' ? '' : a.canvas.doc.sym };
     let o;
     switch (this.tool){
       case 'pen': o = { ...base, type: 'path', pts: [p], d: '', fill: 'none' }; break;
@@ -42,6 +58,8 @@ NT.Drawing = class {
     this.app.setStatus(`${Math.round(p.x)}, ${Math.round(p.y)}`);
     if (!d){ this.hover(p, e.altKey); return; }
     if (d.kind === 'pan'){ this.cv.panBy(e.clientX - d.cx, e.clientY - d.cy); d.cx = e.clientX; d.cy = e.clientY; return; }
+    if (d.kind === 'xform'){ this.xform(d, p, e); return; }
+    if (d.kind === 'node'){ this.app.nodes.drag(d, p, e); return; }
     if (d.kind === 'axis'){ const dc = this.cv.doc; if (d.which === 'x') dc.ax = p.x; else dc.ay = p.y; d.moved = true; this.app.redraw(); return; }
     if (d.kind === 'move'){
       const dx = p.x - d.last.x, dy = p.y - d.last.y; d.last = p; d.moved = true;
@@ -65,13 +83,35 @@ NT.Drawing = class {
   }
   up(){
     const d = this.drag; if (!d) return; this.drag = null; this.app.stage.classList.remove('pan');
-    if (d.kind === 'move' || d.kind === 'axis'){ if (d.moved) this.app.commit(); return; }
+    if (d.kind === 'move' || d.kind === 'axis' || d.kind === 'xform' || d.kind === 'node'){ if (d.moved) this.app.commit(); return; }
     if (d.kind !== 'draw') return;
     const o = d.o; this.app.overlay2.replaceChildren();
     if (o.type === 'path'){ o.pts = NT.geo.thin(o.pts, 1 / this.cv.view.k); o.d = NT.geo.smoothPath(o.pts); }
     const empty = (o.type === 'line' && Math.abs(o.x2 - o.x1) + Math.abs(o.y2 - o.y1) <= 1) || (o.type === 'rect' && (o.w < 1 || o.h < 1)) || (o.type === 'ellipse' && (o.rx < 1 || o.ry < 1));
     if (empty) return;
     this.app.objects.push(o); this.app.commit(); this.app.selection.set([o.id]);
+  }
+  handleAt(p){
+    const b = this.app.selection.unionBox(); if (!b || this.tool !== 'select') return null;
+    const k = this.cv.view.k, tol = 9 / k, c = [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y }, { x: b.x + b.w, y: b.y + b.h }, { x: b.x, y: b.y + b.h }];
+    if (NT.geo.dist(p, { x: b.x + b.w / 2, y: b.y - 26 / k }) < tol) return { type: 'rotate' };
+    for (let i = 0; i < 4; i++) if (NT.geo.dist(p, c[i]) < tol) return { type: 'scale', x: c[i].x, y: c[i].y, opp: c[(i + 2) % 4] };
+    return null;
+  }
+  xform(d, p, e){
+    const b = d.box, hh = d.hh; let W;
+    if (hh.type === 'rotate'){
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2; let a = Math.atan2(p.y - cy, p.x - cx) - Math.atan2(d.start.y - cy, d.start.x - cx);
+      if (e.shiftKey) a = Math.round(a / (Math.PI / 12)) * Math.PI / 12;
+      const c = Math.cos(a), s = Math.sin(a); W = [c, s, -s, c, cx - c * cx + s * cy, cy - s * cx - c * cy];
+    } else {
+      const v = hh.opp, hx = hh.x - v.x, hy = hh.y - v.y, fix = t => Math.abs(t) < 0.02 ? (t < 0 ? -0.02 : 0.02) : t;
+      let sx = (p.x - v.x) / (hx || 1e-6), sy = (p.y - v.y) / (hy || 1e-6);
+      if (e.shiftKey) sx = sy = ((p.x - v.x) * hx + (p.y - v.y) * hy) / (hx * hx + hy * hy || 1);
+      sx = fix(sx); sy = fix(sy); W = [sx, 0, 0, sy, v.x * (1 - sx), v.y * (1 - sy)];
+    }
+    for (const it of d.init){ if (it.M) it.o.M = [...it.M]; else delete it.o.M; it.o.tx = it.tx; it.o.ty = it.ty; NT.geo.compose(it.o, W); }
+    d.moved = true; this.app.redraw();
   }
   /* Axes are grabbable with the Select tool, or with Alt held for any other tool. */
   axisAt(p, alt){

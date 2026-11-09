@@ -2,35 +2,45 @@
 (function(){
   const $ = id => document.getElementById(id);
   const ICONS = {
-    select: '<path d="M5 3l14 8-6 1.5L10 19z"/>', pen: '<path d="M3 17c4-9 8 3 11-6 2-5 4-3 7-5"/>',
+    select: '<path d="M5 3l14 8-6 1.5L10 19z"/>', node: '<path d="M5 19L19 5"/><rect x="3" y="17" width="4" height="4"/><rect x="17" y="3" width="4" height="4"/>', pen: '<path d="M3 17c4-9 8 3 11-6 2-5 4-3 7-5"/>',
     line: '<path d="M4 20L20 4"/>', rect: '<rect x="4" y="5" width="16" height="14"/>',
     circle: '<circle cx="12" cy="12" r="8"/>', ellipse: '<ellipse cx="12" cy="12" rx="9" ry="5.5"/>',
     hand: '<path d="M8 12V6a1.5 1.5 0 013 0v5m0-6a1.5 1.5 0 013 0v6m0-4a1.5 1.5 0 013 0v7a6 6 0 01-6 6h-1a6 6 0 01-5-3l-2-4a1.5 1.5 0 012.5-1.5L8 14"/>'
   };
-  const TOOLS = [['select','Select (V)'],['pen','Freehand (P)'],['line','Line (L)'],['rect','Rectangle (R)'],['circle','Circle (C)'],['ellipse','Ellipse (E)'],['hand','Pan (H or hold Space)']];
+  const TOOLS = [['select','Select (V)'],['node','Node edit (N)'],['pen','Freehand (P)'],['line','Line (L)'],['rect','Rectangle (R)'],['circle','Circle (C)'],['ellipse','Ellipse (E)'],['hand','Pan (H or hold Space)']];
   const app = {
     objects: [], seq: 0, style: { stroke: '#000000', sw: 4, fill: '#000000', fillOn: false },
     newId(){ return 'o' + (++this.seq) + Math.random().toString(36).slice(2, 5); },
-    snapshot(){ return { objects: this.objects, doc: this.canvas.doc, seq: this.seq }; },
-    commit(){ this.history.push(this.snapshot()); this.redraw(); this.updateButtons(); },
+    snapshot(){ return { objects: this.objects, doc: this.canvas.doc, seq: this.seq, layers: this.layers, active: this.activeLayer }; },
+    commit(){ this.history.push(this.snapshot()); this.redraw(); this.renderLayers(); this.updateButtons(); },
     restore(s){
-      if (!s) return; this.objects = s.objects; this.seq = s.seq; this.canvas.setDoc(s.doc); this.syncDoc();
+      if (!s) return; this.objects = s.objects; this.seq = s.seq; this.layers = s.layers; this.activeLayer = s.active; this.renderLayers(); this.canvas.setDoc(s.doc); this.syncDoc();
       this.selection.ids = new Set([...this.selection.ids].filter(id => this.objects.some(o => o.id === id)));
       this.redraw(); this.syncPanel(); this.updateButtons();
     },
-    redraw(){ this.canvas.render(this.objects); this.refreshOverlay(); },
+    redraw(){ this.canvas.layers = this.layers; this.canvas.render(this.objects); this.refreshOverlay(); },
     refreshOverlay(){
       const k = this.canvas.view.k, ov = this.canvas.overlay, ns = 'http://www.w3.org/2000/svg'; ov.replaceChildren();
-      const dc = this.canvas.doc, line = (x1, y1, x2, y2) => { const l = document.createElementNS(ns, 'line');
-        for (const [n, v] of Object.entries({ x1, y1, x2, y2, stroke: '#ff4d8d', 'stroke-width': 1.5 / k, 'stroke-dasharray': `${8 / k} ${5 / k}` })) l.setAttribute(n, v); ov.appendChild(l); };
-      if (dc.sym === 'v' || dc.sym === 'vh') line(dc.ax, 0, dc.ax, dc.h);
-      if (dc.sym === 'h' || dc.sym === 'vh') line(0, dc.ay, dc.w, dc.ay);
+      const mk = (tag, at) => { const e = document.createElementNS(ns, tag); for (const a in at) e.setAttribute(a, at[a]); ov.appendChild(e); return e; };
+      const dc = this.canvas.doc, ax = (x1, y1, x2, y2) => mk('line', { x1, y1, x2, y2, stroke: '#ff4d8d', 'stroke-width': 1.5 / k, 'stroke-dasharray': `${8 / k} ${5 / k}` });
+      if (dc.sym === 'v' || dc.sym === 'vh') ax(dc.ax, 0, dc.ax, dc.h);
+      if (dc.sym === 'h' || dc.sym === 'vh') ax(0, dc.ay, dc.w, dc.ay);
       for (const o of this.selection.objects()){
-        const b = this.selection.bbox(o), r = document.createElementNS(ns, 'rect');
-        r.setAttribute('x', b.x + (o.tx || 0)); r.setAttribute('y', b.y + (o.ty || 0)); r.setAttribute('width', b.w); r.setAttribute('height', b.h);
-        r.setAttribute('fill', 'none'); r.setAttribute('stroke', '#4aa3ff'); r.setAttribute('stroke-width', 1.5 / k); r.setAttribute('stroke-dasharray', `${5 / k} ${4 / k}`);
-        for (const t of [null, ...this.canvas.mats(o.m)]){ const c = r.cloneNode(); if (t){ c.setAttribute('transform', t); c.setAttribute('opacity', 0.5); } ov.appendChild(c); }
+        const pts = this.selection.corners(o).map(q => `${q.x},${q.y}`).join(' ');
+        for (const t of [null, ...this.canvas.mats(o.m)]){
+          const e = mk('polygon', { points: pts, fill: 'none', stroke: '#4aa3ff', 'stroke-width': 1.5 / k, 'stroke-dasharray': `${5 / k} ${4 / k}` });
+          if (t){ e.setAttribute('transform', t); e.setAttribute('opacity', 0.5); }
+        }
       }
+      const box = this.drawing && this.drawing.tool === 'select' ? this.selection.unionBox() : null;
+      if (box){
+        const r = 4.5 / k, S = '#4aa3ff', cx = box.x + box.w / 2;
+        mk('rect', { x: box.x, y: box.y, width: box.w, height: box.h, fill: 'none', stroke: S, 'stroke-width': 1 / k });
+        mk('line', { x1: cx, y1: box.y, x2: cx, y2: box.y - 26 / k, stroke: S, 'stroke-width': 1 / k });
+        mk('circle', { cx, cy: box.y - 26 / k, r, fill: '#fff', stroke: S, 'stroke-width': 1.5 / k });
+        for (const [x, y] of [[box.x, box.y], [box.x + box.w, box.y], [box.x + box.w, box.y + box.h], [box.x, box.y + box.h]]) mk('rect', { x: x - r, y: y - r, width: 2 * r, height: 2 * r, fill: '#fff', stroke: S, 'stroke-width': 1.5 / k });
+      }
+      if (this.nodes) this.nodes.draw(ov, k);
     },
     setStatus(t){ $('status').textContent = t; },
     /* Turn mirrored copies (of the selection, or of everything) into real objects. */
@@ -59,7 +69,7 @@
 
   function init(){
     app.stage = $('stage'); app.canvas = new NT.Canvas(); app.history = new NT.History();
-    app.selection = new NT.Selection(app);
+    app.selection = new NT.Selection(app); NT.layers.install(app); app.nodes = new NT.Nodes(app);
     app.overlay2 = document.createElementNS('http://www.w3.org/2000/svg', 'g'); app.overlay2.setAttribute('pointer-events', 'none');
     app.canvas.world.insertBefore(app.overlay2, app.canvas.overlay);
     app.drawing = new NT.Drawing(app);
@@ -129,18 +139,23 @@
       if (mod && k === 'z'){ e.preventDefault(); app.restore(e.shiftKey ? app.history.redo() : app.history.undo()); return; }
       if (mod && k === 'y'){ e.preventDefault(); app.restore(app.history.redo()); return; }
       if (e.key === ' '){ e.preventDefault(); app.drawing.space = true; app.stage.dataset.tool = 'hand'; return; }
-      if (e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); app.selection.deleteSelected(); return; }
-      if (e.key === 'Escape'){ app.selection.clear(); return; }
+      if (e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); if (app.drawing.tool === 'node' && app.nodes.removeSel()) return; app.selection.deleteSelected(); return; }
+      if (mod && k === 'g'){ e.preventDefault(); e.shiftKey ? app.ungroup() : app.group(); return; }
+      if (mod && k === 'd'){ e.preventDefault(); app.duplicateSel(); return; }
+      if (e.key === 'Escape'){ app.selection.clear(); app.nodes.set(null, null); return; }
       if (mod && k === 'a' && app.drawing.tool === 'select'){ e.preventDefault(); app.selection.set(app.objects.map(o => o.id)); return; }
       if (e.key.startsWith('Arrow') && app.selection.ids.size){
         e.preventDefault(); const s = e.shiftKey ? 10 : 1;
         app.selection.nudge(e.key === 'ArrowLeft' ? -s : e.key === 'ArrowRight' ? s : 0, e.key === 'ArrowUp' ? -s : e.key === 'ArrowDown' ? s : 0);
         clearTimeout(app._nt); app._nt = setTimeout(() => app.commit(), 300); return;
       }
-      const map = { v: 'select', p: 'pen', l: 'line', r: 'rect', c: 'circle', e: 'ellipse', h: 'hand' };
+      const map = { v: 'select', p: 'pen', l: 'line', r: 'rect', c: 'circle', e: 'ellipse', h: 'hand', n: 'node' };
       if (!mod && map[k]) app.drawing.setTool(map[k]);
     });
     window.addEventListener('keyup', e => { if (e.key === ' '){ app.drawing.space = false; app.stage.dataset.tool = app.drawing.tool; } });
+    $('egrp').onclick = () => app.group(); $('eugrp').onclick = () => app.ungroup(); $('edup').onclick = () => app.duplicateSel();
+    $('endel').onclick = () => app.nodes.removeSel(); $('esm').onclick = () => app.nodes.toggleSmooth();
+    app.renderLayers();
     NT.app = app;
   }
   init();

@@ -1,32 +1,8 @@
-/* Geometry helpers shared by all modules. */
+/* Geometry helpers. Every object carries an optional linear part M=[a,b,c,d] plus translation tx,ty
+   (SVG matrix(a b c d tx ty)), so scale/rotate/mirror never touch the stored geometry. */
 window.NT = window.NT || {};
 NT.geo = {
-  /* Mirror an already generated outline exactly (thorns/cuts included) instead of regenerating it. */
-  mirrorGen(o, c, fx, fy, tx, ty){
-    if (o.gd.includes('a')){ NT.tribal.apply(c); return; }
-    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    c.gd = o.gd.replace(/([MC])([^MCZ]*)/g, (m, cmd, nums) => {
-      const v = nums.match(/-?\d*\.?\d+/g).map(Number), out = [];
-      for (let i = 0; i < v.length; i += 2){ const X = Math.round(fx(v[i] + tx) * 10) / 10, Y = Math.round(fy(v[i + 1] + ty) * 10) / 10;
-        x0 = Math.min(x0, X); y0 = Math.min(y0, Y); x1 = Math.max(x1, X); y1 = Math.max(y1, Y); out.push(X, Y); }
-      return cmd + out.join(' ');
-    });
-    c.gb = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-  },
-  mirrorKinds(m){ return m === 'v' ? ['v'] : m === 'h' ? ['h'] : m === 'vh' ? ['v', 'h', 'vh'] : []; },
-  /* Real (baked) mirrored copy of an object about the axes x=ax / y=ay. */
-  mirror(o, kind, ax, ay, id){
-    const fx = kind.includes('v') ? x => 2 * ax - x : x => x, fy = kind.includes('h') ? y => 2 * ay - y : y => y;
-    const tx = o.tx || 0, ty = o.ty || 0, c = { ...o, id, m: '', tx: 0, ty: 0 };
-    if (o.type === 'path'){ c.pts = o.pts.map(p => ({ x: fx(p.x + tx), y: fy(p.y + ty) })); c.d = NT.geo.smoothPath(c.pts); if (o.gen && o.gd) NT.geo.mirrorGen(o, c, fx, fy, tx, ty); }
-    else if (o.type === 'line'){ c.x1 = fx(o.x1 + tx); c.y1 = fy(o.y1 + ty); c.x2 = fx(o.x2 + tx); c.y2 = fy(o.y2 + ty); }
-    else if (o.type === 'rect'){ const xa = fx(o.x + tx), xb = fx(o.x + o.w + tx), ya = fy(o.y + ty), yb = fy(o.y + o.h + ty);
-      c.x = Math.min(xa, xb); c.y = Math.min(ya, yb); c.w = Math.abs(xb - xa); c.h = Math.abs(yb - ya); }
-    else { c.cx = fx(o.cx + tx); c.cy = fy(o.cy + ty); }
-    return c;
-  },
   dist(a, b){ return Math.hypot(a.x - b.x, a.y - b.y); },
-  /* Drop points closer than `min` to the previous kept point (keeps first and last). */
   thin(pts, min){
     if (pts.length < 3) return pts.slice();
     const out = [pts[0]];
@@ -34,7 +10,6 @@ NT.geo = {
     out.push(pts[pts.length - 1]);
     return out;
   },
-  /* Smooth open path through points using quadratic midpoints. */
   smoothPath(pts){
     if (!pts.length) return '';
     const f = n => +n.toFixed(2);
@@ -47,5 +22,25 @@ NT.geo = {
     }
     const l = pts[pts.length - 1];
     return d + `L${f(l.x)} ${f(l.y)}`;
+  },
+  mat(o){ const M = o.M || [1, 0, 0, 1]; return [M[0], M[1], M[2], M[3], o.tx || 0, o.ty || 0]; },
+  apply(o, x, y){ const m = NT.geo.mat(o); return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] }; },
+  invert(o, p){
+    const m = NT.geo.mat(o), det = (m[0] * m[3] - m[1] * m[2]) || 1e-9, x = p.x - m[4], y = p.y - m[5];
+    return { x: (m[3] * x - m[2] * y) / det, y: (-m[1] * x + m[0] * y) / det };
+  },
+  /* Apply a world affine W=[a,b,c,d,e,f] after the object's own transform. */
+  compose(o, W){
+    const m = NT.geo.mat(o);
+    o.M = [W[0] * m[0] + W[2] * m[1], W[1] * m[0] + W[3] * m[1], W[0] * m[2] + W[2] * m[3], W[1] * m[2] + W[3] * m[3]];
+    o.tx = W[0] * m[4] + W[2] * m[5] + W[4]; o.ty = W[1] * m[4] + W[3] * m[5] + W[5];
+  },
+  mirrorKinds(m){ return m === 'v' ? ['v'] : m === 'h' ? ['h'] : m === 'vh' ? ['v', 'h', 'vh'] : []; },
+  /* Real mirrored copy about x=ax / y=ay: same geometry, mirrored transform (generated outlines stay exact). */
+  mirror(o, kind, ax, ay, id){
+    const c = JSON.parse(JSON.stringify(o)); c.id = id; c.m = ''; delete c.gid;
+    const v = kind.includes('v'), h = kind.includes('h');
+    NT.geo.compose(c, [v ? -1 : 1, 0, 0, h ? -1 : 1, v ? 2 * ax : 0, h ? 2 * ay : 0]);
+    return c;
   }
 };

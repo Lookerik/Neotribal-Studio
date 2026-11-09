@@ -14,3 +14,10 @@
 .seg button{padding:6px 4px}
 .seg button.on{background:var(--acc);color:#111;border-color:var(--acc)}
 .note{margin:0;color:var(--mut);font-size:12px}
+#stage[data-tool=node]{cursor:default}
+.lrow{display:flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid transparent;border-radius:5px;margin-bottom:3px}
+.lrow.on{background:#23262b;border-color:var(--line)}
+.lrow button{padding:1px 5px;border:0;background:none;min-width:24px}
+.lname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default}
+.seg5{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:8px}
+.seg5 button{padding:5px 0}
