@@ -12,9 +12,9 @@
     objects: [], seq: 0, style: { stroke: '#000000', sw: 4, fill: '#000000', fillOn: false },
     newId(){ return 'o' + (++this.seq) + Math.random().toString(36).slice(2, 5); },
     snapshot(){ return { objects: this.objects, doc: this.canvas.doc, seq: this.seq, layers: this.layers, active: this.activeLayer }; },
-    commit(){ this.history.push(this.snapshot()); this.redraw(); this.renderLayers(); this.updateButtons(); },
+    commit(){ this.history.push(this.snapshot()); this.redraw(); this.renderLayers(); this.updateButtons(); if (this.storage) this.storage.touch(); },
     restore(s){
-      if (!s) return; this.objects = s.objects; this.seq = s.seq; this.layers = s.layers; this.activeLayer = s.active; this.renderLayers(); this.canvas.setDoc(s.doc); this.syncDoc();
+      if (!s) return; this.objects = s.objects; this.seq = s.seq; this.layers = s.layers; this.activeLayer = s.active; this.renderLayers(); if (this.storage) this.storage.touch(); this.canvas.setDoc(s.doc); this.syncDoc();
       this.selection.ids = new Set([...this.selection.ids].filter(id => this.objects.some(o => o.id === id)));
       this.redraw(); this.syncPanel(); this.updateButtons();
     },
@@ -43,6 +43,15 @@
       if (this.nodes) this.nodes.draw(ov, k);
     },
     setStatus(t){ $('status').textContent = t; },
+    setSaved(t){ $('saved').textContent = t; },
+    syncName(){ $('pname').textContent = this.projectName; },
+    /* Replace the whole document (open, import, new). data=null gives a blank project. */
+    loadProject(data, name, id){
+      const s = data ? NT.io.normalize(data) : NT.io.blank();
+      this.projectId = id || null; this.projectName = name || 'Untitled'; this.selection.ids.clear(); this.nodes.set(null, null);
+      const st = this.storage; this.storage = null; this.restore(s); this.storage = st;
+      this.history.reset(this.snapshot()); this.canvas.fit(); this.updateButtons(); this.syncName(); this.setSaved(id ? 'Opened' : '');
+    },
     /* Turn mirrored copies (of the selection, or of everything) into real objects. */
     releaseMirrors(){
       const d = this.canvas.doc, src = (this.selection.ids.size ? this.selection.objects() : this.objects).filter(o => o.m), out = [];
@@ -69,7 +78,7 @@
 
   function init(){
     app.stage = $('stage'); app.canvas = new NT.Canvas(); app.history = new NT.History();
-    app.selection = new NT.Selection(app); NT.layers.install(app); app.nodes = new NT.Nodes(app);
+    app.selection = new NT.Selection(app); app.projectName = 'Untitled'; app.projectId = null; NT.layers.install(app); app.nodes = new NT.Nodes(app);
     app.overlay2 = document.createElementNS('http://www.w3.org/2000/svg', 'g'); app.overlay2.setAttribute('pointer-events', 'none');
     app.canvas.world.insertBefore(app.overlay2, app.canvas.overlay);
     app.drawing = new NT.Drawing(app);
@@ -140,6 +149,7 @@
       if (mod && k === 'y'){ e.preventDefault(); app.restore(app.history.redo()); return; }
       if (e.key === ' '){ e.preventDefault(); app.drawing.space = true; app.stage.dataset.tool = 'hand'; return; }
       if (e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); if (app.drawing.tool === 'node' && app.nodes.removeSel()) return; app.selection.deleteSelected(); return; }
+      if (mod && k === 's'){ e.preventDefault(); app.storage.save(true); return; }
       if (mod && k === 'g'){ e.preventDefault(); e.shiftKey ? app.ungroup() : app.group(); return; }
       if (mod && k === 'd'){ e.preventDefault(); app.duplicateSel(); return; }
       if (e.key === 'Escape'){ app.selection.clear(); app.nodes.set(null, null); return; }
@@ -156,7 +166,16 @@
     $('egrp').onclick = () => app.group(); $('eugrp').onclick = () => app.ungroup(); $('edup').onclick = () => app.duplicateSel();
     $('endel').onclick = () => app.nodes.removeSel(); $('esm').onclick = () => app.nodes.toggleSmooth();
     app.renderLayers();
+    app.storage = new NT.Storage(app);
+    $('pnew').onclick = async () => { await app.storage.flush(); try { localStorage.removeItem('nt.current'); } catch (e) {} app.loadProject(null, 'Untitled', null); };
+    $('popen').onclick = () => app.storage.openDialog();
+    $('psave').onclick = () => app.storage.save(true);
+    $('pexp').onclick = () => NT.io.openDialog(app);
+    $('pname').onclick = () => { const n = prompt('Project name', app.projectName); if (n && n.trim()){ app.projectName = n.trim(); app.syncName(); app.storage.touch(); } };
+    window.addEventListener('pagehide', () => { if (app.storage.timer) app.storage.save(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && app.storage.timer) app.storage.save(); });
     NT.app = app;
+    app.storage.init();
   }
   init();
 })();

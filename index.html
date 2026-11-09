@@ -11,6 +11,7 @@
 <body>
 <header id="top">
   <div class="brand"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 21C8 19 9 9 21 3 17 10 15 18 3 21Z" fill="currentColor"/></svg><b>Neotribal Studio</b></div>
+  <div class="grp"><button id="pnew" title="New project">New</button><button id="popen" title="Open / manage projects">Open</button><button id="psave" title="Save now (Ctrl+S)">Save</button><button id="pname" title="Rename project">Untitled</button><span id="saved"></span><button id="pexp" title="Export SVG / PNG / JSON">Export</button></div>
   <div class="grp">
     <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
     <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
@@ -76,6 +77,7 @@
   </section>
   <section class="hint"><p>Save, export and polish arrive in later phases.</p></section>
 </aside>
+<dialog id="dlg"></dialog>
 <script src="js/geometry.js"></script>
 <script src="js/tribal-engine.js"></script>
 <script src="js/history.js"></script>
@@ -84,6 +86,8 @@
 <script src="js/curves.js"></script>
 <script src="js/nodes.js"></script>
 <script src="js/layers.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/export.js"></script>
 <script src="js/drawing.js"></script>
 <script src="js/app.js"></script>
 </body>
