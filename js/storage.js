@@ -29,7 +29,7 @@ NT.Storage = class {
     if (!force && !a.objects.length && !a.projectId){ a.setSaved(''); return; }
     try {
       if (!a.projectId) a.projectId = this.uid();
-      await this.put({ id: a.projectId, name: a.projectName, updated: Date.now(), data: a.snapshot() });
+      await this.put({ id: a.projectId, name: a.projectName, updated: Date.now(), data: a.snapshot(), ref: a.ref || null });
       try { localStorage.setItem('nt.current', a.projectId); } catch (e) {}
       a.setSaved('Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e){ a.setSaved('Autosave failed'); a.setStatus('Could not save locally — export a JSON backup'); }
@@ -38,7 +38,7 @@ NT.Storage = class {
     await this.open();
     let id = null; try { id = localStorage.getItem('nt.current'); } catch (e) {}
     if (!id) return;
-    try { const p = await this.get(id); if (p) this.app.loadProject(p.data, p.name, p.id); } catch (e) { this.app.setStatus('Could not restore the last session'); }
+    try { const p = await this.get(id); if (p) this.app.loadProject(p.data, p.name, p.id, p.ref); } catch (e) { this.app.setStatus('Could not restore the last session'); }
   }
   async openDialog(){
     const dlg = document.getElementById('dlg'), a = this.app; await this.flush();
@@ -52,7 +52,7 @@ NT.Storage = class {
         r.querySelector('.pn').textContent = p.name; r.querySelector('small').textContent = new Date(p.updated).toLocaleDateString();
         r.onclick = async e => {
           const act = e.target.dataset && e.target.dataset.a; if (!act) return;
-          if (act === 'open'){ a.loadProject(p.data, p.name, p.id); try { localStorage.setItem('nt.current', p.id); } catch (er) {} NT.io.closeDlg(dlg); }
+          if (act === 'open'){ a.loadProject(p.data, p.name, p.id, p.ref); try { localStorage.setItem('nt.current', p.id); } catch (er) {} NT.io.closeDlg(dlg); }
           else if (act === 'ren'){ const n = prompt('Project name', p.name); if (n && n.trim()){ p.name = n.trim(); await this.put(p); if (p.id === a.projectId){ a.projectName = p.name; a.syncName(); } render(); } }
           else if (act === 'dup'){ await this.put({ ...p, id: this.uid(), name: p.name + ' copy', updated: Date.now() }); render(); }
           else if (act === 'del' && confirm(`Delete "${p.name}"? This cannot be undone.`)){ await this.del(p.id); if (p.id === a.projectId){ try { localStorage.removeItem('nt.current'); } catch (er) {} a.loadProject(null, 'Untitled', null); } render(); }

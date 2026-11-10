@@ -29,7 +29,7 @@
 </header>
 <nav id="tools" aria-label="Tools"></nav>
 <main id="stage"><svg id="svg" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="gridp" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#8884" stroke-width="1" vector-effect="non-scaling-stroke"/></pattern></defs>
-<g id="world"><rect id="paper" x="0" y="0" width="1200" height="800"/><rect id="gridr" x="0" y="0" width="1200" height="800" fill="url(#gridp)" pointer-events="none" display="none"/><g id="art"></g><g id="overlay" pointer-events="none"></g></g></svg>
+<g id="world"><rect id="paper" x="0" y="0" width="1200" height="800"/><image id="refimg" display="none" preserveAspectRatio="none" pointer-events="none"/><rect id="gridr" x="0" y="0" width="1200" height="800" fill="url(#gridp)" pointer-events="none" display="none"/><g id="art"></g><g id="overlay" pointer-events="none"></g></g></svg>
 <div id="status"></div></main>
 <aside id="side">
   <section><h3>Symmetry</h3>
@@ -44,6 +44,8 @@
     <label>Smoothness <output id="smo">50</output><input type="range" id="sm" min="0" max="100" value="50" disabled></label>
     <div class="seg"><button id="tgen" disabled>Generate</button><button id="trev" disabled>Revert to stroke</button></div>
     <div class="seg"><button id="tre" disabled title="New random layout of the details">Regenerate</button><button id="trst" disabled>Reset sliders</button></div>
+    <label class="row"><input type="checkbox" id="autogen"> Auto-generate new strokes</label>
+    <label class="row"><input type="checkbox" id="snapst"> Snap stroke start onto strokes (branching)</label>
     <p class="note">Select a freehand stroke or line, then Generate. The original stroke is kept.</p>
   </section>
   <section><h3>Details</h3>
@@ -53,6 +55,10 @@
     <label>Spacing <output id="spo">40</output><input type="range" id="sp" min="0" max="100" value="40" disabled></label>
     <label>Curvature <output id="cvo">35</output><input type="range" id="cv" min="0" max="100" value="35" disabled></label>
     <label>Randomness <output id="rno">25</output><input type="range" id="rn" min="0" max="100" value="25" disabled></label>
+    <label>Thorn finesse <output id="tho">35</output><input type="range" id="th" min="0" max="100" value="35" disabled></label>
+    <label>Size variety <output id="svo">35</output><input type="range" id="sv" min="0" max="100" value="35" disabled></label>
+    <label>Barbs <output id="bro">0</output><input type="range" id="br" min="0" max="100" value="0" disabled></label>
+    <label>Hole shape (slit → round) <output id="iho">25</output><input type="range" id="ih" min="0" max="100" value="25" disabled></label>
     <p class="note">Density sets how many details appear; Inner = negative-space cuts, Outer = thorns.</p>
   </section>
   <section><h3>Stroke &amp; fill</h3>
@@ -64,10 +70,19 @@
     <div class="seg"><button id="egrp">Group</button><button id="eugrp">Ungroup</button></div>
     <div class="seg"><button id="edup">Duplicate</button><button id="esm" title="Toggle smooth / corner for the selected node">Smooth / Corner</button></div>
     <button id="endel" style="width:100%;margin-bottom:8px">Delete node</button>
-    <p class="note">Select tool: drag corners to scale (Shift keeps proportions); the top circle rotates (Shift snaps 15°). Node tool (N): click a shape, drag nodes and handles, double-click the path to add a node, Delete removes a node, Alt-drag a handle to break it.</p>
+    <div class="seg3"><button id="bun" title="Merge the selected filled shapes">Union</button><button id="bsub" title="Cut the shapes above from the lowest one">Subtract</button><button id="bint" title="Keep only the overlap">Intersect</button></div>
+    <p class="note">Union / Subtract / Intersect need 2+ filled shapes (generate strokes first). Select tool: drag corners to scale (Shift keeps proportions); the top circle rotates (Shift snaps 15°). Node tool (N): click a shape, drag nodes and handles, double-click the path to add a node, Delete removes a node, Alt-drag a handle to break it.</p>
   </section>
   <section><h3>Layers</h3><div id="layers"></div>
     <div class="seg5"><button id="ladd" title="New layer">+</button><button id="ldup" title="Duplicate layer">Dup</button><button id="ldel" title="Delete layer">Del</button><button id="lup" title="Move up">▲</button><button id="ldn" title="Move down">▼</button></div>
+  </section>
+  <section><h3>Reference image</h3>
+    <label class="filebtn" style="display:block;text-align:center;margin:0 0 10px">Load image…<input type="file" id="rfile" accept="image/*" hidden></label>
+    <label>Opacity <output id="ropo">50</output><input type="range" id="rop" min="0" max="100" value="50" disabled></label>
+    <label>Size <output id="rsco">100</output><input type="range" id="rsc" min="5" max="300" value="100" disabled></label>
+    <label class="row"><input type="checkbox" id="rmv" disabled> Move reference (drag on canvas)</label>
+    <button id="rrm" disabled style="width:100%">Remove</button>
+    <p class="note">Shown behind your artwork for tracing. Not included in exports.</p>
   </section>
   <section><h3>Document</h3>
     <label>Canvas
@@ -83,7 +98,10 @@
 <script src="js/history.js"></script>
 <script src="js/canvas.js"></script>
 <script src="js/selection.js"></script>
+<script src="js/vendor/polygon-clipping.umd.min.js"></script>
 <script src="js/curves.js"></script>
+<script src="js/boolean.js"></script>
+<script src="js/reference.js"></script>
 <script src="js/nodes.js"></script>
 <script src="js/layers.js"></script>
 <script src="js/storage.js"></script>

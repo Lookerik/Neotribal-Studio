@@ -16,6 +16,7 @@ NT.Drawing = class {
     if (e.button === 1 || this.space || this.tool === 'hand'){
       this.drag = { kind: 'pan', cx: e.clientX, cy: e.clientY }; this.app.stage.classList.add('pan'); return;
     }
+    if (this.app.refEdit && this.app.ref){ this.drag = { kind: 'ref', last: p, moved: false }; return; }
     const axis = this.axisAt(p, e.altKey);
     if (axis){ this.drag = { kind: 'axis', which: axis }; return; }
     if (this.tool === 'select'){
@@ -46,7 +47,7 @@ NT.Drawing = class {
     const base = { layer: a.activeLayer, id: a.newId(), stroke: a.style.stroke, sw: a.style.sw, fill: a.style.fillOn ? a.style.fill : 'none', tx: 0, ty: 0, m: a.canvas.doc.sym === 'off' ? '' : a.canvas.doc.sym };
     let o;
     switch (this.tool){
-      case 'pen': o = { ...base, type: 'path', pts: [p], d: '', fill: 'none' }; break;
+      case 'pen': o = { ...base, type: 'path', pts: [this.snapPt(p) || p], d: '', fill: 'none' }; break;
       case 'line': o = { ...base, type: 'line', x1: p.x, y1: p.y, x2: p.x, y2: p.y }; break;
       case 'rect': o = { ...base, type: 'rect', x: p.x, y: p.y, w: 0, h: 0 }; break;
       default: o = { ...base, type: 'ellipse', cx: p.x, cy: p.y, rx: 0, ry: 0 };
@@ -58,6 +59,7 @@ NT.Drawing = class {
     this.app.setStatus(`${Math.round(p.x)}, ${Math.round(p.y)}`);
     if (!d){ this.hover(p, e.altKey); return; }
     if (d.kind === 'pan'){ this.cv.panBy(e.clientX - d.cx, e.clientY - d.cy); d.cx = e.clientX; d.cy = e.clientY; return; }
+    if (d.kind === 'ref'){ const r = this.app.ref; r.x += p.x - d.last.x; r.y += p.y - d.last.y; d.last = p; d.moved = true; this.app.applyRef(); return; }
     if (d.kind === 'xform'){ this.xform(d, p, e); return; }
     if (d.kind === 'node'){ this.app.nodes.drag(d, p, e); return; }
     if (d.kind === 'axis'){ const dc = this.cv.doc; if (d.which === 'x') dc.ax = p.x; else dc.ay = p.y; d.moved = true; this.app.redraw(); return; }
@@ -83,13 +85,23 @@ NT.Drawing = class {
   }
   up(){
     const d = this.drag; if (!d) return; this.drag = null; this.app.stage.classList.remove('pan');
-    if (d.kind === 'move' || d.kind === 'axis' || d.kind === 'xform' || d.kind === 'node'){ if (d.moved) this.app.commit(); return; }
+    if (d.kind === 'move' || d.kind === 'axis' || d.kind === 'xform' || d.kind === 'node' || d.kind === 'ref'){ if (d.moved) this.app.commit(); return; }
     if (d.kind !== 'draw') return;
     const o = d.o; this.app.overlay2.replaceChildren();
     if (o.type === 'path'){ o.pts = NT.geo.thin(o.pts, 1 / this.cv.view.k); o.d = NT.geo.smoothPath(o.pts); }
     const empty = (o.type === 'line' && Math.abs(o.x2 - o.x1) + Math.abs(o.y2 - o.y1) <= 1) || (o.type === 'rect' && (o.w < 1 || o.h < 1)) || (o.type === 'ellipse' && (o.rx < 1 || o.ry < 1));
     if (empty) return;
+    if (this.app.autoGen && this.app.makeGen && (o.type === 'path' || o.type === 'line')) this.app.makeGen(o);
     this.app.objects.push(o); this.app.commit(); this.app.selection.set([o.id]);
+  }
+  /* Nearest point on any visible, unlocked stroke centreline (world space), for branching. */
+  snapPt(p){
+    if (!this.app.snapOn) return null; const tol = 12 / this.cv.view.k; let best = null, bd = tol;
+    for (const o of this.app.objects){
+      if (o.type !== 'path' || o.bool || !o.pts) continue; const l = this.app.layers.find(x => x.id === o.layer); if (!l || !l.visible || l.locked) continue;
+      for (const q of o.pts){ const w = NT.geo.apply(o, q.x, q.y), dd = NT.geo.dist(p, w); if (dd < bd){ bd = dd; best = w; } }
+    }
+    return best;
   }
   handleAt(p){
     const b = this.app.selection.unionBox(); if (!b || this.tool !== 'select') return null;

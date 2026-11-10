@@ -6,7 +6,7 @@
    Everything is deterministic for a given seed, so sliders never reshuffle the layout. */
 NT.tribal = (() => {
   const f = n => Math.round(n * 10) / 10, clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  const DEFAULTS = { fs: 50, te: 45, tp: 40, sm: 50, dd: 30, oi: 50, oo: 50, sp: 40, cv: 35, rn: 25, seed: 7 };
+  const DEFAULTS = { fs: 50, te: 45, tp: 40, sm: 50, dd: 30, oi: 50, oo: 50, sp: 40, cv: 35, rn: 25, th: 35, sv: 35, br: 0, ih: 25, seed: 7 };
   const rngOf = seed => { let a = (seed | 0) || 1; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
   const area = P => { let s = 0; for (let i = 0; i < P.length; i++){ const a = P[i], b = P[(i + 1) % P.length]; s += a.x * b.y - b.x * a.y; } return s / 2; };
   const quad = (p0, c, p1, m = 6) => { const o = []; for (let i = 0; i <= m; i++){ const t = i / m, u = 1 - t; o.push({ x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x, y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y }); } return o; };
@@ -87,35 +87,54 @@ NT.tribal = (() => {
     /* ---- ornaments ---- */
     const dd = g.dd / 100, R = g.rn / 100, cv = g.cv / 100, rng = rngOf(g.seed);
     const near = s => { let lo = 0, hi = n - 1; while (hi - lo > 1){ const m = (lo + hi) >> 1; if (pts[m].s < s) lo = m; else hi = m; } return (s - pts[lo].s < pts[hi].s - s) ? lo : hi; };
-    if (dd > 0 && g.oo > 0){            /* outer thorns: spacing = SPACING, count = DETAIL DENSITY x OUTER */
-      const gap = 12 + g.sp * 1.1, pr = clamp(dd * g.oo / 50, 0, 1), amt = 0.6 + 0.8 * g.oo / 100, sweep = 0.15 + 1.1 * cv;
+    const fin = g.th / 100, sv = g.sv / 100, rd = g.ih / 100;
+    const spike = (i, side, tl, su, bf, m = 6) => {          /* curved thorn rooted on the contour at sample i */
+      const h = H[i], t = T[i], nx = -t.y * side, ny = t.x * side, b = Math.max(1.1, tl * bf), vb = -Math.min(0.3 * b, h * 0.8);
+      const loc = (u, v) => ({ x: pts[i].x + nx * (h + v) + t.x * u, y: pts[i].y + ny * (h + v) + t.y * u }), tip = loc(su, tl);
+      return shape(quad(loc(-b, vb), loc(-b * 0.3, tl * 0.55), tip, m), quad(tip, loc(b + (su - b) * 0.15, tl * 0.4), loc(b, vb), m), sign, pool);
+    };
+    if (dd > 0 && g.oo > 0){            /* main thorns: count = DENSITY x OUTER; FINESSE = needle-thin; VARIETY = mixed sizes */
+      const gap = 12 + g.sp * 1.1, pr = clamp(dd * g.oo / 50, 0, 1), amt = (0.6 + 0.8 * g.oo / 100) * (1 + 0.5 * fin), sweep = 0.15 + 1.1 * cv, bf = 0.28 - 0.2 * fin;
       let j = 0;
       for (let s = Z * 0.5 + gap * 0.5; s < L - Z * 0.5 - gap * 0.3; s += gap, j++){
-        const r1 = rng(), r2 = rng(), r3 = rng();           /* fixed draws per slot keep the layout stable */
+        const r1 = rng(), r2 = rng(), r3 = rng(), r4 = rng();     /* fixed draws per slot keep the layout stable */
         if (((j * 0.618034 + 0.13) % 1) >= pr) continue;
         const i = near(clamp(s + (r1 - 0.5) * gap * 0.6 * R, 0, L)), h = H[i]; if (h < 2.5) continue;
-        const side = j % 2 ? 1 : -1, t = T[i], nx = -t.y * side, ny = t.x * side;
-        const tl = (h * 0.9 + hpk * 0.4 + 8) * amt * (1 + (r2 - 0.5) * 1.2 * R), b = Math.max(2, tl * 0.28), vb = -Math.min(0.3 * b, h * 0.8);
-        const loc = (u, v) => ({ x: pts[i].x + nx * (h + v) + t.x * u, y: pts[i].y + ny * (h + v) + t.y * u });
-        const su = sweep * tl + (r3 - 0.5) * tl * 0.3 * R, tip = loc(su, tl);
-        d += shape(quad(loc(-b, vb), loc(-b * 0.3, tl * 0.55), tip), quad(tip, loc(b + (su - b) * 0.15, tl * 0.4), loc(b, vb)), sign, pool);
+        const side = r4 < 0.5 + (j % 2 ? 0.5 : -0.5) * (1 - 0.7 * R) ? 1 : -1;
+        const tl = (h * 0.9 + hpk * 0.4 + 8) * amt * (1 - sv + sv * (0.25 + 1.5 * r2 * r2)) * (1 + (r2 - 0.5) * 0.6 * R);
+        d += spike(i, side, tl, sweep * tl + (r3 - 0.5) * tl * 0.3 * R, bf);
       }
     }
-    if (dd > 0 && g.oi > 0){            /* inner cuts: lens slits wound opposite to the body = negative space */
-      const gap = 24 + g.sp * 1.5, pr = clamp(dd * g.oi / 50, 0, 1), amt = 0.18 + 0.22 * g.oi / 100, lanes = [0, 0.5, -0.5];
+    if (g.br > 0){                      /* barbs: dense tiny hooked thorns along both edges */
+      const gap = 4 + (100 - g.br) * 0.12; let j = 0;
+      for (let s = Z * 0.35; s < L - Z * 0.35; s += gap, j++){
+        const r1 = rng(), r2 = rng(), r3 = rng();
+        const i = near(clamp(s + (r1 - 0.5) * gap * 0.8 * R, 0, L)); if (H[i] < 2) continue;
+        const tl = (1.8 + hpk * 0.2) * (0.5 + r2) * (1 + 0.5 * fin);
+        d += spike(i, (j % 2 ? 1 : -1) * (r3 < 0.25 * R ? -1 : 1), tl, tl * (0.5 + cv), 0.38 - 0.22 * fin, 3);
+      }
+    }
+    if (dd > 0 && g.oi > 0){            /* inner cuts, wound opposite = negative space; HOLE SHAPE slit -> round */
+      const gap = 24 + g.sp * 1.5, pr = clamp(dd * g.oi / 50, 0, 1), amt = (0.18 + 0.22 * g.oi / 100) * (1 + 0.9 * rd), lanes = [0, 0.5, -0.5], e = 1 - 0.5 * rd;
       let j = 0;
       for (let s = Z * 0.4; s < L - Z * 0.4 - gap * 0.4; s += gap, j++){
         const r1 = rng(), r2 = rng();
         if (((j * 0.754877 + 0.31) % 1) >= pr) continue;
-        const a = clamp(s + (r2 - 0.5) * gap * 0.4 * R, 0, L), i0 = near(a), i1 = near(Math.min(L, a + gap * 0.7 * (1 + (r1 - 0.5) * 0.8 * R)));
+        const a = clamp(s + (r2 - 0.5) * gap * 0.4 * R, 0, L), i0 = near(a), i1 = near(Math.min(L, a + gap * 0.7 * (1 - 0.4 * rd) * (1 + (r1 - 0.5) * 0.8 * R)));
         if (i1 - i0 < 3) continue;
         let hmin = 1e9; for (let q = i0; q <= i1; q++) hmin = Math.min(hmin, H[q]);
         if (hmin < 4) continue;
         const lane = lanes[j % 3], A = [], B = [];
-        for (let q = i0; q <= i1; q++){
-          const c = lane * H[q], w = Math.min(amt * H[q] * Math.sin(Math.PI * (q - i0) / (i1 - i0)), 0.85 * H[q] - Math.abs(c)), nx = -T[q].y, ny = T[q].x;
-          A.push({ x: pts[q].x + nx * (c + w), y: pts[q].y + ny * (c + w) }); B.push({ x: pts[q].x + nx * (c - w), y: pts[q].y + ny * (c - w) });
+        const m = Math.max(i1 - i0, 24), S = []; let fc = 1;   /* finer than the body; shrink the whole hole if it would leave the body */
+        for (let k = 0; k <= m; k++){
+          const uu = (1 - Math.cos(Math.PI * k / m)) / 2, fq = i0 + (i1 - i0) * uu, q = Math.min(n - 2, Math.floor(fq)), u = fq - q, lp = (a, b) => a + (b - a) * u;
+          const px = lp(pts[q].x, pts[q + 1].x), py = lp(pts[q].y, pts[q + 1].y), Hq = lp(H[q], H[q + 1]), tx = lp(T[q].x, T[q + 1].x), ty = lp(T[q].y, T[q + 1].y), tm = Math.hypot(tx, ty) || 1;
+          const c = lane * Hq, wr = amt * Hq * Math.pow(Math.sin(Math.PI * uu), e);
+          if (wr > 1e-6) fc = Math.min(fc, (0.85 * Hq - Math.abs(c)) / wr);
+          S.push([px, py, -ty / tm, tx / tm, c, wr]);
         }
+        if (fc < 0.35) continue;
+        for (const [px, py, nx, ny, c, wr] of S){ const w = wr * fc; A.push({ x: px + nx * (c + w), y: py + ny * (c + w) }); B.push({ x: px + nx * (c - w), y: py + ny * (c - w) }); }
         d += shape(A, B.reverse(), -sign, pool);
       }
     }

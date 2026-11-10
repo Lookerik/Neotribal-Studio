@@ -36,3 +36,5 @@ dialog h2{margin:0 0 12px;font-size:15px}
 button.primary{background:var(--acc);color:#111;border-color:var(--acc)}
 #saved{color:var(--mut);font-size:12px;min-width:92px}
 #pname{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-style:dashed}
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.seg3 button{padding:6px 2px;font-size:12px}

@@ -46,8 +46,8 @@
     setSaved(t){ $('saved').textContent = t; },
     syncName(){ $('pname').textContent = this.projectName; },
     /* Replace the whole document (open, import, new). data=null gives a blank project. */
-    loadProject(data, name, id){
-      const s = data ? NT.io.normalize(data) : NT.io.blank();
+    loadProject(data, name, id, ref){
+      const s = data ? NT.io.normalize(data) : NT.io.blank(); this.ref = NT.reference.valid(ref !== undefined ? ref : data && data.ref); this.applyRef();
       this.projectId = id || null; this.projectName = name || 'Untitled'; this.selection.ids.clear(); this.nodes.set(null, null);
       const st = this.storage; this.storage = null; this.restore(s); this.storage = st;
       this.history.reset(this.snapshot()); this.canvas.fit(); this.updateButtons(); this.syncName(); this.setSaved(id ? 'Opened' : '');
@@ -72,13 +72,13 @@
     applyStyle(style, objFn){
       Object.assign(this.style, style);
       const sel = this.selection.objects(); if (!sel.length) return;
-      for (const o of sel){ Object.assign(o, objFn(o)); if (o.gen) NT.tribal.apply(o); } this.redraw();
+      for (const o of sel){ Object.assign(o, objFn(o)); if (o.gen) NT.tribal.apply(o); if (o.bool) o.fill = o.stroke; } this.redraw();
     }
   };
 
   function init(){
     app.stage = $('stage'); app.canvas = new NT.Canvas(); app.history = new NT.History();
-    app.selection = new NT.Selection(app); app.projectName = 'Untitled'; app.projectId = null; NT.layers.install(app); app.nodes = new NT.Nodes(app);
+    app.selection = new NT.Selection(app); app.projectName = 'Untitled'; app.projectId = null; NT.layers.install(app); NT.bool.install(app); NT.reference.install(app); app.nodes = new NT.Nodes(app);
     app.overlay2 = document.createElementNS('http://www.w3.org/2000/svg', 'g'); app.overlay2.setAttribute('pointer-events', 'none');
     app.canvas.world.insertBefore(app.overlay2, app.canvas.overlay);
     app.drawing = new NT.Drawing(app);
@@ -111,12 +111,13 @@
     $('symr').onclick = () => app.releaseMirrors();
 
     /* Neo-Tribal generator panel */
-    const KEYS = ['fs', 'te', 'tp', 'sm', 'dd', 'oi', 'oo', 'sp', 'cv', 'rn'], D = NT.tribal.DEFAULTS; app.tp = { ...D };
-    const genable = () => app.selection.objects().filter(o => o.type === 'path' || o.type === 'line');
+    const KEYS = ['fs', 'te', 'tp', 'sm', 'dd', 'oi', 'oo', 'sp', 'cv', 'rn', 'th', 'sv', 'br', 'ih'], D = NT.tribal.DEFAULTS; app.tp = { ...D };
+    const genable = () => app.selection.objects().filter(o => (o.type === 'path' || o.type === 'line') && !o.bool);
     const makeGen = o => {
       if (o.type === 'line'){ o.pts = [{ x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }]; o.d = NT.geo.smoothPath(o.pts); o.type = 'path'; for (const k of ['x1', 'y1', 'x2', 'y2']) delete o[k]; o.fill = 'none'; }
       o.gen = { ...app.tp }; NT.tribal.apply(o);
     };
+    app.makeGen = makeGen;
     app.syncGen = () => {
       const sel = genable(), g = sel.find(o => o.gen);
       for (const id of KEYS) $(id).disabled = !sel.length;
@@ -166,6 +167,8 @@
     $('egrp').onclick = () => app.group(); $('eugrp').onclick = () => app.ungroup(); $('edup').onclick = () => app.duplicateSel();
     $('endel').onclick = () => app.nodes.removeSel(); $('esm').onclick = () => app.nodes.toggleSmooth();
     app.renderLayers();
+    $('bun').onclick = () => app.boolean('union'); $('bsub').onclick = () => app.boolean('subtract'); $('bint').onclick = () => app.boolean('intersect');
+    $('autogen').onchange = e => { app.autoGen = e.target.checked; }; $('snapst').onchange = e => { app.snapOn = e.target.checked; };
     app.storage = new NT.Storage(app);
     $('pnew').onclick = async () => { await app.storage.flush(); try { localStorage.removeItem('nt.current'); } catch (e) {} app.loadProject(null, 'Untitled', null); };
     $('popen').onclick = () => app.storage.openDialog();

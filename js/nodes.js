@@ -4,6 +4,7 @@ NT.Nodes = class {
   set(oid, idx){ this.oid = oid; this.idx = idx; this.app.refreshOverlay(); }
   get obj(){ return (this.oid && this.app.objects.find(o => o.id === this.oid)) || null; }
   enter(o){
+    if (o.bool) return false;
     if (!o.nodes){
       let r;
       if (o.type === 'path') r = { nodes: NT.curves.fromPts(o.pts), closed: false };

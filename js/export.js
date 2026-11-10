@@ -12,10 +12,10 @@ NT.io = {
     const doc = { ...b.doc, ...d.doc }; doc.w = num(doc.w, 100, 8000, 1200); doc.h = num(doc.h, 100, 8000, 800);
     doc.ax = num(doc.ax, -1e5, 1e5, doc.w / 2); doc.ay = num(doc.ay, -1e5, 1e5, doc.h / 2); if (!['off', 'v', 'h', 'vh'].includes(doc.sym)) doc.sym = 'off'; doc.bg = String(doc.bg || '#ffffff');
     const seen = new Set(), objects = d.objects.filter(o => o && NT.io.TYPES.includes(o.type) && typeof o.id === 'string' && !seen.has(o.id) && seen.add(o.id) && (o.type !== 'path' || Array.isArray(o.pts)));
-    objects.forEach(o => { if (!layers.some(l => l.id === o.layer)) o.layer = layers[0].id; o.sw = num(o.sw, 0.1, 500, 4); o.stroke = String(o.stroke || '#000'); o.fill = String(o.fill || 'none'); });
+    objects.forEach(o => { if (!layers.some(l => l.id === o.layer)) o.layer = layers[0].id; o.sw = num(o.sw, 0, 500, 4); o.stroke = String(o.stroke || '#000'); o.fill = String(o.fill || 'none'); });
     return { objects, doc, seq: Math.max(num(d.seq, 0, 1e9, 0), objects.length), layers, active: layers.some(l => l.id === d.active) ? d.active : layers[0].id };
   },
-  toJSON(app){ return JSON.stringify({ app: 'neotribal-studio', version: 1, name: app.projectName, exported: new Date().toISOString(), ...app.snapshot() }, null, 1); },
+  toJSON(app){ return JSON.stringify({ app: 'neotribal-studio', version: 1, name: app.projectName, exported: new Date().toISOString(), ...app.snapshot(), ref: app.ref || undefined }, null, 1); },
   /* bg: 'transparent' | 'canvas' | any CSS colour. Dimensions default to the document size. */
   toSVG(app, { bg = 'canvas', width, height } = {}){
     const ns = 'http://www.w3.org/2000/svg', d = app.canvas.doc, svg = document.createElementNS(ns, 'svg');
